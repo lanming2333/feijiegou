@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Restaurant Recommendation System</title>
+    <style>
+        body {
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f4f4f9;
+            color: #333;
+            text-align: center;
+            background-image: url('background.png'); /* 替换 'your-image-url.jpg' 为您的图片链接 */
+            background-size: cover; /* 保证背景图片覆盖整个可视区域 */
+            background-position: center; /* 背景图片居中显示 */
+            background-repeat: no-repeat; /* 背景图片不重复 */
+        }
+        input[type="text"], button {
+            padding: 10px;
+            margin-top: 10px;
+            display: inline-block;
+            vertical-align: middle;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            transition: border-color 0.3s;
+        }
+        input[type="text"] {
+            margin-right: 5px;
+            width: 60%;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            width: 150px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:active {
+            background-color: #004885;
+        }
+        input[type="text"]:focus {
+            border-color: #66afe9;
+            outline: none;
+        }
+        @media (max-width: 768px) {
+            input[type="text"], button {
+                width: 90%;
+                margin-top: 20px;
+                display: block;
+            }
+            body {
+                margin: 20px;
+            }
+        }
+        .restaurant-name {
+            font-size: 24px;
+            margin-top: 10px;
+            color: #007BFF;
+            font-weight: bold;
+        }
+        #results {
+            position: relative;
+            min-height: 500px; /* 调整以适应图表 */
+            width: 100%;
+        }
+        .address-box, .service-box, .similar-box, .review-box, .chart-box {
+            position: absolute;
+            top: 40px;
+            width: 400px;
+            border: 2px solid #ccc;
+            padding: 10px;
+            background-color: #fff;
+        }
+        .address-box {
+            left: 30px;
+        }
+        .service-box {
+            left: 480px;
+        }
+        .similar-box {
+            left: 930px;
+        }
+        .review-box {
+            left: 1380px;
+        }
+        .chart-box {
+            left: 1430px;
+            top: 100px;  /* 调整顶部距离 */
+            width: auto; /* 自动宽度调整 */
+        }
+    </style>
+</head>
+<body>
+    <h1>Restaurant Recommendation System</h1>
+    <input type="text" id="searchInput" placeholder="Enter search criteria (e.g., 'French mid-range Nouvelle-Aquitaine')" aria-label="Search criteria">
+    <button onclick="search()">Search</button>
+    <div id="results" role="region" aria-live="polite"></div>
+    <!-- 引入 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        function search() {
+            var query = document.getElementById('searchInput').value;
+            var url = 'http://127.0.0.1:5000/search';
+            showLoadingIndicator();
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({query: query})
+            })
+            .then(response => response.json())
+            .then(data => {
+                var resultsElement = document.getElementById('results');
+                resultsElement.innerHTML = '';
+                data.forEach(item => {
+                    resultsElement.innerHTML += `<p onclick="fetchDetails(${item.index})">Restaurant: ${item.name}, Similarity Score: ${item.score.toFixed(2)}</p>`;
+                });
+            })
+            .catch(error => {
+                document.getElementById('results').innerHTML = `<p>An error occurred: Please try again later.</p>`;
+                console.error('Error:', error);
+            });
+        }
+
+        function fetchDetails(index) {
+            var url = `http://127.0.0.1:5000/details/${index}`;
+            showLoadingIndicator();
+            fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                var details = data.details;
+                var recommendations = data.recommendations;
+                var resultsElement = document.getElementById('results');
+                resultsElement.innerHTML = '';  // 清空现有内容
+
+                // 添加餐馆名称元素
+                var restaurantNameDiv = document.createElement('div');
+                restaurantNameDiv.className = 'restaurant-name';
+                restaurantNameDiv.textContent = details.Name;
+                resultsElement.appendChild(restaurantNameDiv);
+
+                // 添加地址信息框
+                var addressBoxDiv = document.createElement('div');
+                addressBoxDiv.className = 'address-box';
+                addressBoxDiv.innerHTML = `<div class="address-title">Address Information</div>
+                    <p>Country: ${details.Country}</p>
+                    <p>Region: ${details.Region}</p>
+                    <p>Province: ${details.Province}</p>
+                    <p>City: ${details.City}</p>
+                    <p>Address: ${details.Address}</p>
+                    <p>Latitude: ${details.Latitude}</p>
+                    <p>Longitude: ${details.Longitude}</p>`;
+                resultsElement.appendChild(addressBoxDiv);
+
+                // 添加服务信息框
+                var serviceBoxDiv = document.createElement('div');
+                serviceBoxDiv.className = 'service-box';
+                serviceBoxDiv.innerHTML = `<div class="service-title">Restaurant Services</div>
+                    <p>Top Tags: ${details.TopTags}</p>
+                    <p>Price Level: ${details.PriceLevel}</p>
+                    <p>Meals: ${details.Meals}</p>
+                    <p>Cuisines: ${details.Cuisines}</p>
+                    <p>Special Diets: ${details.SpecialDiets}</p>
+                    <p>Features: ${details.Features}</p>
+                    <p>Vegetarian Friendly: ${details.VegetarianFriendly}</p>
+                    <p>Vegan Options: ${details.VeganOptions}</p>
+                    <p>Gluten Free: ${details.GlutenFree}</p>`;
+                resultsElement.appendChild(serviceBoxDiv);
+
+                // 添加相似推荐框
+                var similarBoxDiv = document.createElement('div');
+                similarBoxDiv.className = 'similar-box';
+                similarBoxDiv.innerHTML = `<div class="similar-title">Similar Recommendations</div>`;
+                recommendations.forEach(function(rec) {
+                    similarBoxDiv.innerHTML += `<p>Similar Name: ${rec.name}, Similar Score: ${rec.score.toFixed(2)}</p>`;
+                });
+                resultsElement.appendChild(similarBoxDiv);
+
+                // 添加评价信息框和图表
+                var reviewBoxDiv = document.createElement('div');
+                reviewBoxDiv.className = 'review-box';
+                reviewBoxDiv.innerHTML = `<div class="review-title">Customer Reviews</div>`;
+                resultsElement.appendChild(reviewBoxDiv);
+
+                // 在页面中创建图表容器
+                var chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-box';
+                chartContainer.innerHTML = `<canvas id="ratingChart"></canvas><canvas id="reviewChart"></canvas>`;
+                resultsElement.appendChild(chartContainer);
+
+                // 创建评价的饼图
+                var ctxPie = document.getElementById('reviewChart').getContext('2d');
+                var reviewChart = new Chart(ctxPie, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Excellent', 'Very Good', 'Average', 'Poor', 'Terrible'],
+                        datasets: [{
+                            label: 'Review Distribution',
+                            data: [details.Excellent, details.VeryGood, details.Average, details.Poor, details.Terrible],
+                            backgroundColor: ['green', 'blue', 'yellow', 'orange', 'red'],
+                        }]
+                    }
+                });
+
+                // 创建服务评级的柱状图
+                var ctxBar = document.getElementById('ratingChart').getContext('2d');
+                var ratingChart = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Food', 'Service', 'Value', 'Atmosphere'],
+                        datasets: [{
+                            label: 'Ratings',
+                            data: [details.Food, details.Service, details.Value, details.Atmosphere],
+                            backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(255, 206, 86, 0.2)', 'rgba(75, 192, 192, 0.2)'],
+                            borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            yAxes: [{
+                                ticks: {
+                                    beginAtZero: true
+                                }
+                            }]
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching details:', error);
+            });
+        }
+
+        function showLoadingIndicator() {
+            document.getElementById('results').innerHTML = '<p>Loading...</p>';
+        }
+    </script>
+</body>
+</html>
